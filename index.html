@@ -16,7 +16,7 @@
             align-items: center;
         }
         .container {
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             margin-top: 40px;
         }
@@ -26,12 +26,11 @@
             text-align: center;
             color: #fff;
             margin-bottom: 10px;
+            text-decoration: none;
             cursor: pointer;
             transition: color 0.2s ease;
         }
-        h1:hover {
-            color: #58a6ff;
-        }
+        h1:hover { color: #58a6ff; }
         .description {
             text-align: center;
             font-size: 14px;
@@ -59,9 +58,7 @@
             font-size: 16px;
             outline: none;
         }
-        input:focus {
-            border-color: #58a6ff;
-        }
+        input:focus { border-color: #58a6ff; }
         
         .suggestions-box {
             position: absolute;
@@ -86,17 +83,12 @@
             display: flex;
             justify-content: space-between;
         }
-        .suggestion-item:last-child {
-            border-bottom: none;
-        }
+        .suggestion-item:last-child { border-bottom: none; }
         .suggestion-item:hover, .suggestion-item.active {
             background: #333;
             color: #fff;
         }
-        .suggestion-num {
-            color: #888;
-            font-size: 12px;
-        }
+        .suggestion-num { color: #888; font-size: 12px; }
 
         button {
             padding: 12px 20px;
@@ -109,41 +101,74 @@
         }
         button:hover { background: #555; }
 
-        .error-msg {
-            color: #ff6b6b;
-            text-align: center;
-            margin-top: 20px;
-        }
-        .suggestion {
-            color: #aaa;
-            text-align: center;
-            margin-top: 20px;
-        }
-        .suggestion-link {
-            color: #58a6ff;
-            cursor: pointer;
-            text-decoration: underline;
-        }
+        .error-msg { color: #ff6b6b; text-align: center; margin-top: 20px; }
+        .suggestion { color: #aaa; text-align: center; margin-top: 20px; }
+        .suggestion-link { color: #58a6ff; cursor: pointer; text-decoration: underline; }
 
         .pokemon-entry {
             margin-bottom: 60px;
             border-bottom: 1px solid #222;
             padding-bottom: 40px;
         }
+        .header-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .image-box {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        .image-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.4));
+            image-rendering: pixelated;
+        }
+        .header-info {
+            flex: 1;
+            min-width: 250px;
+        }
         .pokemon-name {
-            font-size: 22px;
+            font-size: 24px;
             color: #fff;
-            margin: 0;
+            margin: 0 0 4px 0;
+        }
+        .pokemon-category {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+        .dex-entry {
+            font-size: 13px;
+            font-style: italic;
+            color: #888;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+        .physique-info {
+            font-size: 13px;
+            color: #ccc;
+            margin-top: 8px;
         }
         .external-links {
-            margin-top: 5px;
-            font-size: 14px;
+            font-size: 13px;
             color: #555;
+            margin-top: 8px;
         }
-        .external-links a {
-            color: #58a6ff;
-            text-decoration: none;
-        }
+        .external-links a { color: #58a6ff; text-decoration: none; }
         .external-links a:hover { text-decoration: underline; }
         
         .type-label {
@@ -154,13 +179,13 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        
         .type-badge {
             display: inline-block;
             margin-right: 10px;
             margin-top: 5px;
             font-weight: 600;
             font-size: 14px;
+            text-decoration: none;
         }
 
         .ability-link {
@@ -218,13 +243,18 @@
             text-align: center;
             line-height: 1.6;
         }
+        /* PokéAPI Link immer blau machen */
+        .disclaimer a[href*="pokeapi.co"] {
+            color: #58a6ff !important;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1 onclick="location.reload()">Vextoly Pokécheck</h1>
-        <p class="description">Analysiere die Typen-Effektivität von Pokémon schnell und präzise.</p>
+        <p class="description">Analysiere die Typen-Effektivität und Daten von Pokémon schnell und präzise.</p>
         
         <div class="search-box">
             <div class="input-wrapper">
@@ -238,6 +268,8 @@
         <div class="disclaimer">
             Hinweis: Fähigkeiten wie "Schwebe" können die Typen-Effektivität beeinflussen. <br>
             Diese werden in der statischen Berechnung nicht berücksichtigt.
+            <br><br>
+            Dieses Projekt wäre nicht ohne <a href="https://pokeapi.co/" target="_blank">PokéAPI</a> möglich gewesen.
         </div>
     </div>
 
@@ -253,6 +285,23 @@
             Rock: "Gestein", Ghost: "Geist", Dragon: "Drache", Dark: "Unlicht", 
             Steel: "Stahl", Fairy: "Fee"
         };
+        
+        const typeToBisa = {
+            Normal: "normal", Fire: "feuer", Water: "wasser", Electric: "elektro", 
+            Grass: "pflanze", Ice: "eis", Fighting: "kampf", Poison: "gift", 
+            Ground: "boden", Flying: "flug", Psychic: "psycho", Bug: "kaefer", 
+            Rock: "gestein", Ghost: "geist", Dragon: "drache", Dark: "unlicht", 
+            Steel: "stahl", Fairy: "fee"
+        };
+
+        const apiToInternal = {
+            normal: "Normal", fire: "Fire", water: "Water", electric: "Electric",
+            grass: "Grass", ice: "Ice", fighting: "Fighting", poison: "Poison",
+            ground: "Ground", flying: "Flying", psychic: "Psychic", bug: "Bug",
+            rock: "Rock", ghost: "Ghost", dragon: "Dragon", dark: "Dark",
+            steel: "Steel", fairy: "Fairy"
+        };
+
         const allTypes = Object.keys(typeDe);
 
         const chart = {
@@ -266,6 +315,17 @@
             Dragon: { Dragon: 2, Steel: 0.5, Fairy: 0 }, Dark: { Fighting: 0.5, Psychic: 2, Ghost: 2, Dark: 0.5, Fairy: 0.5 },
             Steel: { Fire: 0.5, Water: 0.5, Electric: 0.5, Ice: 2, Rock: 2, Steel: 0.5, Fairy: 2 }, Fairy: { Fire: 0.5, Fighting: 2, Poison: 0.5, Dragon: 2, Dark: 2, Steel: 0.5 }
         };
+
+        async function fetchPokeAPI(url) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data;
+            } catch (e) {
+                return null;
+            }
+        }
 
         function getLevenshteinDist(s, t) {
             const d = [];
@@ -320,7 +380,6 @@
                         
                         const hasStats = p.length >= 8 && !isNaN(p[p.length - 1]);
                         const len = p.length;
-                        
                         const statsStart = hasStats ? len - 6 : len;
                         const middle = p.slice(2, statsStart);
                         
@@ -341,7 +400,6 @@
                                 spAtk: p[len - 3], spDef: p[len - 2], spe: p[len - 1]
                             };
                         }
-
                         pokemonList.push(obj);
                     }
                 });
@@ -361,56 +419,94 @@
             const box = btn.nextElementSibling;
             if (box.style.display === 'none') {
                 box.style.display = 'grid';
-                btn.textContent = 'Basispunkte ausblenden';
+                btn.textContent = 'Basispunkte verstecken';
             } else {
                 box.style.display = 'none';
                 btn.textContent = 'Basispunkte anzeigen';
             }
         }
 
-        async function fetchPokeAPIAbilities(name) {
-            try {
-                const cleanName = name.toLowerCase().replace(' ', '-').replace('.','');
-                const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
-                const data = await response.json();
-                return data.abilities;
-            } catch (e) {
-                return [];
-            }
+        function getTypeBadgeHtml(typeKey) {
+            const germanName = typeDe[typeKey];
+            const bisaSlug = typeToBisa[typeKey];
+            return `<a href="https://www.bisafans.de/typendex/${bisaSlug}.php" target="_blank" class="type-badge t-${typeKey}">${germanName}</a>`;
         }
 
         async function renderResults(results) {
             const container = document.getElementById('results');
-            container.innerHTML = '<p class="suggestion">Lade Daten...</p>';
+            container.innerHTML = '<p class="suggestion">Lade Daten aus der PokeAPI...</p>';
             
             const entriesHtml = await Promise.all(results.map(async p => {
-                const eff = getEff(p.t1, p.t2);
-                const apiAbilities = await fetchPokeAPIAbilities(p.name);
+                const pokeId = parseInt(p.num);
+                const pokeData = await fetchPokeAPI(`https://pokeapi.co/api/v2/pokemon/${pokeId}`);
                 
-                let html = `<div class="pokemon-entry">`;
-                html += `<p class="pokemon-name">#${p.num} ${p.name} ${p.form ? `(${p.form})` : ''}</p>`;
-                html += `<div class="external-links">
-                            <a href="https://www.bisafans.de/pokedex/${p.num}.php" target="_blank">Zu Bisafans</a> 
-                            | 
-                            <a href="https://www.smogon.com/dex/sv/pokemon/${p.name.toLowerCase()}" target="_blank">Zu Smogon.com</a>
-                         </div>`;
+                let speciesData = null;
+                if (pokeData && pokeData.species) {
+                    speciesData = await fetchPokeAPI(pokeData.species.url);
+                }
+
+                const apiAbilities = pokeData ? pokeData.abilities : [];
                 
-                html += `<span class="type-label">Typ:</span> <span class="type-badge t-${p.t1}">${typeDe[p.t1]}</span>`;
-                if(p.t2) html += `<span class="type-badge t-${p.t2}">${typeDe[p.t2]}</span>`;
+                // Änderung: Nutze Gen 5 Sprites (Black/White) als Standard
+                const imgUrl = pokeData?.sprites?.versions['generation-v']?.['black-white']?.front_default || pokeData?.sprites?.front_default || '';
+                
+                const height = pokeData ? (pokeData.height / 10).toFixed(1) + ' m' : '?';
+                const weight = pokeData ? (pokeData.weight / 10).toFixed(1) + ' kg' : '?';
+                const baseExp = pokeData ? pokeData.base_experience : '?';
+
+                let t1 = p.t1;
+                let t2 = p.t2;
+                if (pokeData && pokeData.types) {
+                    t1 = apiToInternal[pokeData.types[0].type.name];
+                    t2 = pokeData.types[1] ? apiToInternal[pokeData.types[1].type.name] : null;
+                }
+
+                const eff = getEff(t1, t2);
+
+                let dexEntry = '';
+                let category = '';
+                if (speciesData) {
+                    const deEntry = speciesData.flavor_text_entries.find(e => e.language.name === 'de');
+                    if (deEntry) dexEntry = deEntry.flavor_text.replace(/[\n\f\r]/g, ' ');
+                    const deGenus = speciesData.genera.find(g => g.language.name === 'de');
+                    if (deGenus) category = deGenus.genus;
+                }
+
+                let html = `<div class="pokemon-entry">
+                                <div class="header-layout">`;
+                
+                if (imgUrl) {
+                    html += `       <div class="image-box"><img src="${imgUrl}" alt="${p.name}"></div>`;
+                }
+
+                html += `             <div class="header-info">
+                                           <h2 class="pokemon-name">#${p.num} ${p.name} ${p.form ? `(${p.form})` : ''}</h2>`;
+                if(category) html += `   <div class="pokemon-category">${category}</div>`;
+                
+                html += `                 <div class="physique-info">
+                                             <strong>Größe:</strong> ${height} | <strong>Gewicht:</strong> ${weight} | <strong>Basis-EP:</strong> ${baseExp}
+                                         </div>`;
+
+                if(dexEntry) html += `   <div class="dex-entry">"${dexEntry}"</div>`;
+
+                html += `                 <div class="external-links">
+                                             <a href="https://www.bisafans.de/pokedex/${p.num}.php" target="_blank">Zu Bisafans</a> 
+                                             | 
+                                             <a href="https://www.smogon.com/dex/sv/pokemon/${p.name.toLowerCase()}" target="_blank">Zu Smogon.com</a>
+                                         </div>
+                                    </div>
+                                </div>`;
+                
+                html += `<span class="type-label">Typ:</span> ${getTypeBadgeHtml(t1)}`;
+                if(t2) html += getTypeBadgeHtml(t2);
 
                 if(apiAbilities.length > 0) {
-                    html += `<span class="type-label">Mögliche Fähigkeiten (Via PokeAPI):</span>`;
+                    html += `<span class="type-label">Mögliche Fähigkeiten:</span>`;
                     apiAbilities.forEach(a => {
                         const enName = a.ability.name.replace('-', ' ');
                         const deName = abilityMap[enName.toLowerCase()] || enName;
                         const hiddenSuffix = a.is_hidden ? ' (VF)' : '';
-                        
-                        const urlName = deName.toLowerCase()
-                            .replace(/ä/g, 'ae')
-                            .replace(/ö/g, 'oe')
-                            .replace(/ü/g, 'ue')
-                            .replace(/ß/g, 'ss');
-                            
+                        const urlName = deName.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
                         html += `<a href="https://www.bisafans.de/faehigkeitendex/${urlName}.php" target="_blank" class="ability-link">${deName}${hiddenSuffix}</a>`;
                     });
                 }
@@ -418,7 +514,7 @@
                 [{val:4,l:"4x Effektiv"}, {val:2,l:"2x Effektiv"}, {val:1,l:"Normal"}, {val:0.5,l:"0.5x Resistent"}, {val:0.25,l:"0.25x Resistent"}, {val:0,l:"Immun"}].forEach(c => {
                     if(eff[c.val].length > 0) {
                         html += `<span class="type-label">${c.l}:</span>`;
-                        eff[c.val].forEach(t => html += `<span class="type-badge t-${t}">${typeDe[t]}</span>`);
+                        eff[c.val].forEach(t => html += getTypeBadgeHtml(t));
                     }
                 });
 
@@ -459,11 +555,9 @@
             if(!q) return;
 
             let exactResults = pokemonList.filter(p => p.name.toLowerCase() === q);
-            
             if (exactResults.length === 0) {
                 exactResults = pokemonList.filter(p => p.nameDe && p.nameDe.toLowerCase() === q);
             }
-            
             if (exactResults.length === 0) {
                 const searchNum = q.padStart(3, '0');
                 exactResults = pokemonList.filter(p => p.num === searchNum);
@@ -524,9 +618,7 @@
                     const div = document.createElement('div');
                     div.className = 'suggestion-item';
                     if (index === 0) div.classList.add('active');
-
                     div.innerHTML = `<span>${match.name}</span> <span class="suggestion-num">#${match.num}</span>`;
-                    
                     div.onmousedown = (e) => {
                         e.preventDefault();
                         search(match.name);
