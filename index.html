@@ -317,7 +317,6 @@
 
         const allTypes = Object.keys(typeDe);
 
-        // Zuordnung der Fähigkeiten zu ihren Immunitäten
         const abilityImmunities = {
             'schwebe': 'Ground',
             'blitzfänger': 'Electric',
@@ -332,6 +331,13 @@
             'trockenheit': 'Water',
             'erdfresser': 'Ground',
             'hefezopf': 'Fire'
+        };
+
+        const abilityResistances = {
+            'speckschicht': ['Fire', 'Ice'],
+            'hitzeschutz': ['Fire'],
+            'wasserblase': ['Fire'],
+            'reinigungssalz': ['Ghost']
         };
 
         const chart = {
@@ -490,7 +496,7 @@
                     t2 = pokeData.types[1] ? apiToInternal[pokeData.types[1].type.name] : null;
                 }
 
-                const eff = getEff(t1, t2);
+                let eff = getEff(t1, t2);
                 let abilityNotes = [];
                 let hasWonderGuard = false;
                 let abilitiesHtml = '';
@@ -506,7 +512,6 @@
                         
                         abilitiesHtml += `<a href="https://www.bisafans.de/faehigkeitendex/${urlName}.php" target="_blank" class="ability-link">${deName}${hiddenSuffix}</a>`;
 
-                        // Check Fähigkeiten Logik
                         if (deNameLower === 'wunderwache') {
                             hasWonderGuard = true;
                         } else if (abilityImmunities[deNameLower]) {
@@ -518,10 +523,27 @@
                                 abilityNotes.push(noteText);
                             }
                         }
+                        
+                        if (abilityResistances[deNameLower]) {
+                            const affectedTypes = abilityResistances[deNameLower];
+                            affectedTypes.forEach(typeKey => {
+                                const typeDeName = typeDe[typeKey];
+                                const noteText = `Mit der Fähigkeit <strong>${deName}</strong> wird Schaden durch <strong>${typeDeName}</strong> zusätzlich <strong>halbiert</strong>.`;
+                                if (!abilityNotes.includes(noteText)) {
+                                    abilityNotes.push(noteText);
+                                }
+                                
+                                [4, 2, 1, 0.5].forEach(m => {
+                                    if (eff[m].includes(typeKey)) {
+                                        eff[m] = eff[m].filter(t => t !== typeKey);
+                                        eff[m * 0.5].push(typeKey);
+                                    }
+                                });
+                            });
+                        }
                     });
                 }
 
-                // Wende Wunderwache an, wenn vorhanden (Ninjatom Logik)
                 if (hasWonderGuard) {
                     eff[0].push(...eff[1], ...eff[0.5], ...eff[0.25]);
                     eff[1] = [];
@@ -538,7 +560,6 @@
                     if (deGenus) category = deGenus.genus;
                 }
 
-                // Generiere HTML Name - NEU: mit deutschen Namen in Klammern
                 const displayName = `${p.name} ${p.nameDe ? `(${p.nameDe})` : ''}`;
 
                 let html = `<div class="pokemon-entry">
@@ -637,7 +658,6 @@
                 let bestMatch = null;
                 let minDist = 3;
 
-                // Korrekturvorschläge prüfen jetzt beide Sprachen (Englisch & Deutsch)
                 pokemonList.forEach(p => {
                     const dEn = getLevenshteinDist(q, p.name.toLowerCase());
                     if (dEn < minDist) {
