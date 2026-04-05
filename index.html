@@ -198,6 +198,19 @@
         }
         .ability-link:hover { text-decoration: underline; }
 
+        .ability-note-box {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #ddd;
+            background: #222;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            border-left: 4px solid #58a6ff;
+        }
+        .ability-note-item { margin-bottom: 4px; }
+        .ability-note-item:last-child { margin-bottom: 0; }
+
         .stats-toggle {
             color: #58a6ff;
             cursor: pointer;
@@ -243,8 +256,11 @@
             text-align: center;
             line-height: 1.6;
         }
-        /* PokéAPI Link immer blau machen */
         .disclaimer a[href*="pokeapi.co"] {
+            color: #58a6ff !important;
+            text-decoration: underline;
+        }
+        .disclaimer a[href*="pokemondb.net"] {
             color: #58a6ff !important;
             text-decoration: underline;
         }
@@ -266,10 +282,7 @@
         <div id="results"></div>
         
         <div class="disclaimer">
-            Hinweis: Fähigkeiten wie "Schwebe" können die Typen-Effektivität beeinflussen. <br>
-            Diese werden in der statischen Berechnung nicht berücksichtigt.
-            <br><br>
-            Dieses Projekt wäre nicht ohne <a href="https://pokeapi.co/" target="_blank">PokéAPI</a> möglich gewesen.
+            Dieses Projekt wäre nicht ohne <a href="https://pokeapi.co/" target="_blank">PokéAPI</a> und <a href="https://pokemondb.net/" target="_blank">PokémonDB</a> möglich gewesen.
         </div>
     </div>
 
@@ -303,6 +316,23 @@
         };
 
         const allTypes = Object.keys(typeDe);
+
+        // Zuordnung der Fähigkeiten zu ihren Immunitäten
+        const abilityImmunities = {
+            'schwebe': 'Ground',
+            'blitzfänger': 'Electric',
+            'motorschub': 'Electric',
+            'voltabsorber': 'Electric',
+            'feuerfänger': 'Fire',
+            'h2o-absorber': 'Water',
+            'sturmsog': 'Water',
+            'wassersog': 'Water',
+            'vegetarier': 'Grass',
+            'pflanzenfresser': 'Grass',
+            'trockenheit': 'Water',
+            'erdfresser': 'Ground',
+            'hefezopf': 'Fire'
+        };
 
         const chart = {
             Normal: { Rock: 0.5, Ghost: 0, Steel: 0.5 }, Fire: { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 2, Bug: 2, Rock: 0.5, Dragon: 0.5, Steel: 2 },
@@ -434,7 +464,7 @@
 
         async function renderResults(results) {
             const container = document.getElementById('results');
-            container.innerHTML = '<p class="suggestion">Lade Daten aus der PokeAPI...</p>';
+            container.innerHTML = '<p class="suggestion">Lade Daten...</p>';
             
             const entriesHtml = await Promise.all(results.map(async p => {
                 const pokeId = parseInt(p.num);
@@ -447,7 +477,6 @@
 
                 const apiAbilities = pokeData ? pokeData.abilities : [];
                 
-                // Änderung: Nutze Gen 5 Sprites (Black/White) als Standard
                 const imgUrl = pokeData?.sprites?.versions['generation-v']?.['black-white']?.front_default || pokeData?.sprites?.front_default || '';
                 
                 const height = pokeData ? (pokeData.height / 10).toFixed(1) + ' m' : '?';
@@ -462,6 +491,43 @@
                 }
 
                 const eff = getEff(t1, t2);
+                let abilityNotes = [];
+                let hasWonderGuard = false;
+                let abilitiesHtml = '';
+
+                if(apiAbilities.length > 0) {
+                    abilitiesHtml += `<span class="type-label">Mögliche Fähigkeiten:</span>`;
+                    apiAbilities.forEach(a => {
+                        const enName = a.ability.name.replace('-', ' ');
+                        const deName = abilityMap[enName.toLowerCase()] || enName;
+                        const deNameLower = deName.toLowerCase();
+                        const hiddenSuffix = a.is_hidden ? ' (VF)' : '';
+                        const urlName = deName.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+                        
+                        abilitiesHtml += `<a href="https://www.bisafans.de/faehigkeitendex/${urlName}.php" target="_blank" class="ability-link">${deName}${hiddenSuffix}</a>`;
+
+                        // Check Fähigkeiten Logik
+                        if (deNameLower === 'wunderwache') {
+                            hasWonderGuard = true;
+                        } else if (abilityImmunities[deNameLower]) {
+                            const immuneTypeInternal = abilityImmunities[deNameLower];
+                            const immuneTypeDe = typeDe[immuneTypeInternal];
+                            
+                            const noteText = `Mit der Fähigkeit <strong>${deName}</strong> wird <strong>${immuneTypeDe}</strong> zu <strong>0x (Immun)</strong>.`;
+                            if (!abilityNotes.includes(noteText)) {
+                                abilityNotes.push(noteText);
+                            }
+                        }
+                    });
+                }
+
+                // Wende Wunderwache an, wenn vorhanden (Ninjatom Logik)
+                if (hasWonderGuard) {
+                    eff[0].push(...eff[1], ...eff[0.5], ...eff[0.25]);
+                    eff[1] = [];
+                    eff[0.5] = [];
+                    eff[0.25] = [];
+                }
 
                 let dexEntry = '';
                 let category = '';
@@ -472,6 +538,9 @@
                     if (deGenus) category = deGenus.genus;
                 }
 
+                // Generiere HTML Name - NEU: mit deutschen Namen in Klammern
+                const displayName = `${p.name} ${p.nameDe ? `(${p.nameDe})` : ''}`;
+
                 let html = `<div class="pokemon-entry">
                                 <div class="header-layout">`;
                 
@@ -480,7 +549,7 @@
                 }
 
                 html += `             <div class="header-info">
-                                           <h2 class="pokemon-name">#${p.num} ${p.name} ${p.form ? `(${p.form})` : ''}</h2>`;
+                                           <h2 class="pokemon-name">#${p.num} ${displayName} ${p.form ? `[${p.form}]` : ''}</h2>`;
                 if(category) html += `   <div class="pokemon-category">${category}</div>`;
                 
                 html += `                 <div class="physique-info">
@@ -500,16 +569,7 @@
                 html += `<span class="type-label">Typ:</span> ${getTypeBadgeHtml(t1)}`;
                 if(t2) html += getTypeBadgeHtml(t2);
 
-                if(apiAbilities.length > 0) {
-                    html += `<span class="type-label">Mögliche Fähigkeiten:</span>`;
-                    apiAbilities.forEach(a => {
-                        const enName = a.ability.name.replace('-', ' ');
-                        const deName = abilityMap[enName.toLowerCase()] || enName;
-                        const hiddenSuffix = a.is_hidden ? ' (VF)' : '';
-                        const urlName = deName.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
-                        html += `<a href="https://www.bisafans.de/faehigkeitendex/${urlName}.php" target="_blank" class="ability-link">${deName}${hiddenSuffix}</a>`;
-                    });
-                }
+                html += abilitiesHtml;
                 
                 [{val:4,l:"4x Effektiv"}, {val:2,l:"2x Effektiv"}, {val:1,l:"Normal"}, {val:0.5,l:"0.5x Resistent"}, {val:0.25,l:"0.25x Resistent"}, {val:0,l:"Immun"}].forEach(c => {
                     if(eff[c.val].length > 0) {
@@ -517,6 +577,14 @@
                         eff[c.val].forEach(t => html += getTypeBadgeHtml(t));
                     }
                 });
+
+                if (abilityNotes.length > 0) {
+                    html += `<div class="ability-note-box">`;
+                    abilityNotes.forEach(note => {
+                        html += `<div class="ability-note-item">&#9432; ${note}</div>`;
+                    });
+                    html += `</div>`;
+                }
 
                 if (p.stats) {
                     html += `
@@ -569,11 +637,19 @@
                 let bestMatch = null;
                 let minDist = 3;
 
+                // Korrekturvorschläge prüfen jetzt beide Sprachen (Englisch & Deutsch)
                 pokemonList.forEach(p => {
-                    const d = getLevenshteinDist(q, p.name.toLowerCase());
-                    if (d < minDist) {
-                        minDist = d;
+                    const dEn = getLevenshteinDist(q, p.name.toLowerCase());
+                    if (dEn < minDist) {
+                        minDist = dEn;
                         bestMatch = p.name;
+                    }
+                    if (p.nameDe) {
+                        const dDe = getLevenshteinDist(q, p.nameDe.toLowerCase());
+                        if (dDe < minDist) {
+                            minDist = dDe;
+                            bestMatch = p.nameDe;
+                        }
                     }
                 });
 
@@ -604,8 +680,9 @@
             for (let i = 0; i < pokemonList.length; i++) {
                 const p = pokemonList[i];
                 if (!seenNames.has(p.name)) {
-                    if (p.name.toLowerCase().includes(val) || p.num.includes(val)) {
-                        matches.push({ name: p.name, num: p.num });
+                    if (p.name.toLowerCase().includes(val) || (p.nameDe && p.nameDe.toLowerCase().includes(val)) || p.num.includes(val)) {
+                        const displayName = p.nameDe ? `${p.name} (${p.nameDe})` : p.name;
+                        matches.push({ name: p.name, displayName: displayName, num: p.num });
                         seenNames.add(p.name);
                     }
                 }
@@ -618,7 +695,7 @@
                     const div = document.createElement('div');
                     div.className = 'suggestion-item';
                     if (index === 0) div.classList.add('active');
-                    div.innerHTML = `<span>${match.name}</span> <span class="suggestion-num">#${match.num}</span>`;
+                    div.innerHTML = `<span>${match.displayName}</span> <span class="suggestion-num">#${match.num}</span>`;
                     div.onmousedown = (e) => {
                         e.preventDefault();
                         search(match.name);
