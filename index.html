@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vextoly Pokécheck</title>
+	<link rel="icon" href="https://vextoly.link/pokecheck/logo.ico" type="image/x-icon">
     <style>
         body {
             background-color: #0d0d0d;
@@ -211,6 +212,24 @@
         .ability-note-item { margin-bottom: 4px; }
         .ability-note-item:last-child { margin-bottom: 0; }
 
+        .tera-box {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .tera-select {
+            padding: 6px 10px;
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .tera-select:focus { border-color: #58a6ff; }
+
         .stats-toggle {
             color: #58a6ff;
             cursor: pointer;
@@ -264,6 +283,10 @@
             color: #58a6ff !important;
             text-decoration: underline;
         }
+        .disclaimer a[href*="bisafans.de"] {
+            color: #58a6ff !important;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -282,7 +305,7 @@
         <div id="results"></div>
         
         <div class="disclaimer">
-            Dieses Projekt wäre nicht ohne <a href="https://pokeapi.co/" target="_blank">PokéAPI</a> und <a href="https://pokemondb.net/" target="_blank">PokémonDB</a> möglich gewesen.
+            Dieses Projekt wäre nicht ohne <a href="https://pokeapi.co/" target="_blank">PokéAPI</a>, <a href="https://pokemondb.net/" target="_blank">PokémonDB</a> und <a href="https://www.bisafans.de" target="_blank">Bisafans</a> möglich gewesen.
         </div>
     </div>
 
@@ -290,6 +313,7 @@
         let pokemonList = [];
         let currentSuggestions = [];
         let abilityMap = {};
+        window.pokeDataCache = {};
 
         const typeDe = {
             Normal: "Normal", Fire: "Feuer", Water: "Wasser", Electric: "Elektro", 
@@ -317,28 +341,29 @@
 
         const allTypes = Object.keys(typeDe);
 
-        const abilityImmunities = {
-            'schwebe': 'Ground',
-            'blitzfänger': 'Electric',
-            'motorschub': 'Electric',
-            'voltabsorber': 'Electric',
-            'feuerfänger': 'Fire',
-            'h2o-absorber': 'Water',
-            'sturmsog': 'Water',
-            'wassersog': 'Water',
-            'vegetarier': 'Grass',
-            'pflanzenfresser': 'Grass',
-            'trockenheit': 'Water',
-            'erdfresser': 'Ground',
-            'hefezopf': 'Fire'
-        };
+const abilityImmunities = {
+    'schwebe': 'Ground',
+    'erdfresser': 'Ground',         
+    'blitzfänger': 'Electric',
+    'motorschub': 'Electric',
+    'voltabsorber': 'Electric',
+    'sturmtrinker': 'Water',        
+    'h2o-absorber': 'Water',
+    'trockenheit': 'Water',
+    'wassersog': 'Water',
+    'feuerfänger': 'Fire',
+    'hefezopf': 'Fire',
+    'sap-sipper': 'Grass',
+    'vegetarier': 'Grass',
+    'pflanzenfresser': 'Grass'
+};
 
-        const abilityResistances = {
-            'speckschicht': ['Fire', 'Ice'],
-            'hitzeschutz': ['Fire'],
-            'wasserblase': ['Fire'],
-            'reinigungssalz': ['Ghost']
-        };
+const abilityResistances = {
+    'speckschicht': ['Fire', 'Ice'],
+    'hitzeschutz': ['Fire'],
+    'wasserblase': ['Fire'],
+    'reinigungssalz': ['Ghost']
+};
 
         const chart = {
             Normal: { Rock: 0.5, Ghost: 0, Steel: 0.5 }, Fire: { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 2, Bug: 2, Rock: 0.5, Dragon: 0.5, Steel: 2 },
@@ -451,6 +476,50 @@
             return res;
         }
 
+        function calcEffHtml(t1, t2, apiAbilities, hasWonderGuard) {
+            let eff = getEff(t1, t2);
+            
+            if(apiAbilities && apiAbilities.length > 0) {
+                apiAbilities.forEach(a => {
+                    const enName = a.ability.name.replace('-', ' ');
+                    const deName = abilityMap[enName.toLowerCase()] || enName;
+                    const deNameLower = deName.toLowerCase();
+                    
+                    if (abilityResistances[deNameLower]) {
+                        abilityResistances[deNameLower].forEach(typeKey => {
+                            [4, 2, 1, 0.5].forEach(m => {
+                                if (eff[m].includes(typeKey)) {
+                                    eff[m] = eff[m].filter(t => t !== typeKey);
+                                    eff[m * 0.5].push(typeKey);
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+
+            if (hasWonderGuard) {
+                eff[0].push(...eff[1], ...eff[0.5], ...eff[0.25]);
+                eff[1] = []; eff[0.5] = []; eff[0.25] = [];
+            }
+
+            let html = '';
+            [{val:4,l:"4x Effektiv"}, {val:2,l:"2x Effektiv"}, {val:1,l:"Normal"}, {val:0.5,l:"0.5x Resistent"}, {val:0.25,l:"0.25x Resistent"}, {val:0,l:"Immun"}].forEach(c => {
+                if(eff[c.val].length > 0) {
+                    html += `<span class="type-label">${c.l}:</span>`;
+                    eff[c.val].forEach(t => html += getTypeBadgeHtml(t));
+                }
+            });
+            return html;
+        }
+
+        window.updateTera = function(num, teraType) {
+            const data = window.pokeDataCache[num];
+            const t1 = teraType ? teraType : data.t1;
+            const t2 = teraType ? null : data.t2;
+            document.getElementById(`eff-box-${num}`).innerHTML = calcEffHtml(t1, t2, data.apiAbilities, data.hasWonderGuard);
+        };
+
         function toggleStats(btn) {
             const box = btn.nextElementSibling;
             if (box.style.display === 'none') {
@@ -474,7 +543,35 @@
             
             const entriesHtml = await Promise.all(results.map(async p => {
                 const pokeId = parseInt(p.num);
-                const pokeData = await fetchPokeAPI(`https://pokeapi.co/api/v2/pokemon/${pokeId}`);
+                
+                // Form-Slug für PokéAPI bauen (z.B. charizard-mega-x)
+                let baseName = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                let apiSlug = baseName;
+                
+                if (p.form) {
+                    let formPart = p.form.toLowerCase()
+                                    .replace(baseName, '')
+                                    .trim()
+                                    .replace(/[\s\.]+/g, '-')
+                                    .replace(/[^a-z0-9-]/g, '')
+                                    .replace(/-+/g, '-')
+                                    .replace(/^-|-$/g, '');
+                    
+                    formPart = formPart.replace('alolan', 'alola')
+                                       .replace('galarian', 'galar')
+                                       .replace('hisuian', 'hisui')
+                                       .replace('paldean', 'paldea');
+                                       
+                    apiSlug = baseName + '-' + formPart;
+                }
+
+                // API Abfrage mit spezifischem Namen versuchen
+                let pokeData = await fetchPokeAPI(`https://pokeapi.co/api/v2/pokemon/${apiSlug}`);
+                
+                // Fallback auf ID, falls der Name nicht klappt
+                if (!pokeData) {
+                    pokeData = await fetchPokeAPI(`https://pokeapi.co/api/v2/pokemon/${pokeId}`);
+                }
                 
                 let speciesData = null;
                 if (pokeData && pokeData.species) {
@@ -482,21 +579,15 @@
                 }
 
                 const apiAbilities = pokeData ? pokeData.abilities : [];
-                
-                const imgUrl = pokeData?.sprites?.versions['generation-v']?.['black-white']?.front_default || pokeData?.sprites?.front_default || '';
-                
+                const imgUrl = pokeData?.sprites?.other['official-artwork']?.front_default || pokeData?.sprites?.front_default || '';
                 const height = pokeData ? (pokeData.height / 10).toFixed(1) + ' m' : '?';
                 const weight = pokeData ? (pokeData.weight / 10).toFixed(1) + ' kg' : '?';
                 const baseExp = pokeData ? pokeData.base_experience : '?';
 
+                // WICHTIG: Typen aus lokaler Liste bevorzugen, da diese für Formen bereits stimmen
                 let t1 = p.t1;
                 let t2 = p.t2;
-                if (pokeData && pokeData.types) {
-                    t1 = apiToInternal[pokeData.types[0].type.name];
-                    t2 = pokeData.types[1] ? apiToInternal[pokeData.types[1].type.name] : null;
-                }
 
-                let eff = getEff(t1, t2);
                 let abilityNotes = [];
                 let hasWonderGuard = false;
                 let abilitiesHtml = '';
@@ -532,24 +623,12 @@
                                 if (!abilityNotes.includes(noteText)) {
                                     abilityNotes.push(noteText);
                                 }
-                                
-                                [4, 2, 1, 0.5].forEach(m => {
-                                    if (eff[m].includes(typeKey)) {
-                                        eff[m] = eff[m].filter(t => t !== typeKey);
-                                        eff[m * 0.5].push(typeKey);
-                                    }
-                                });
                             });
                         }
                     });
                 }
 
-                if (hasWonderGuard) {
-                    eff[0].push(...eff[1], ...eff[0.5], ...eff[0.25]);
-                    eff[1] = [];
-                    eff[0.5] = [];
-                    eff[0.25] = [];
-                }
+                window.pokeDataCache[p.num] = { t1, t2, apiAbilities, hasWonderGuard };
 
                 let dexEntry = '';
                 let category = '';
@@ -569,17 +648,17 @@
                     html += `       <div class="image-box"><img src="${imgUrl}" alt="${p.name}"></div>`;
                 }
 
-                html += `             <div class="header-info">
+                html += `               <div class="header-info">
                                            <h2 class="pokemon-name">#${p.num} ${displayName} ${p.form ? `[${p.form}]` : ''}</h2>`;
                 if(category) html += `   <div class="pokemon-category">${category}</div>`;
                 
-                html += `                 <div class="physique-info">
+                html += `                  <div class="physique-info">
                                              <strong>Größe:</strong> ${height} | <strong>Gewicht:</strong> ${weight} | <strong>Basis-EP:</strong> ${baseExp}
                                          </div>`;
 
                 if(dexEntry) html += `   <div class="dex-entry">"${dexEntry}"</div>`;
 
-                html += `                 <div class="external-links">
+                html += `                  <div class="external-links">
                                              <a href="https://www.bisafans.de/pokedex/${p.num}.php" target="_blank">Zu Bisafans</a> 
                                              | 
                                              <a href="https://www.smogon.com/dex/sv/pokemon/${p.name.toLowerCase()}" target="_blank">Zu Smogon.com</a>
@@ -591,13 +670,6 @@
                 if(t2) html += getTypeBadgeHtml(t2);
 
                 html += abilitiesHtml;
-                
-                [{val:4,l:"4x Effektiv"}, {val:2,l:"2x Effektiv"}, {val:1,l:"Normal"}, {val:0.5,l:"0.5x Resistent"}, {val:0.25,l:"0.25x Resistent"}, {val:0,l:"Immun"}].forEach(c => {
-                    if(eff[c.val].length > 0) {
-                        html += `<span class="type-label">${c.l}:</span>`;
-                        eff[c.val].forEach(t => html += getTypeBadgeHtml(t));
-                    }
-                });
 
                 if (abilityNotes.length > 0) {
                     html += `<div class="ability-note-box">`;
@@ -606,6 +678,19 @@
                     });
                     html += `</div>`;
                 }
+
+                html += `
+                    <div class="tera-box">
+                        <span class="type-label" style="display:inline-block; margin-top:0;">Tera-Typ:</span>
+                        <select class="tera-select" onchange="window.updateTera('${p.num}', this.value)">
+                            <option value="">-- Keiner --</option>
+                            ${allTypes.map(t => `<option value="${t}">${typeDe[t]}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div id="eff-box-${p.num}">
+                        ${calcEffHtml(t1, t2, apiAbilities, hasWonderGuard)}
+                    </div>
+                `;
 
                 if (p.stats) {
                     html += `
